@@ -1,49 +1,21 @@
-export const workItemCategories = ["任务", "需求", "线上问题", "逻辑答疑", "日常待办", "不承接"] as const;
-export const processPaths = [
-  "研发排查",
-  "转需求",
-  "手动配置",
-  "规则调整",
-  "数据修复",
-  "逻辑答复",
-  "转他人",
-  "不承接",
-  "暂不处理",
-  "已完成",
-] as const;
-export const workItemStatuses = ["已记录", "处理中", "待反馈", "待验证", "已完成", "暂不处理"] as const;
-export const requirementPriorities = ["P0 - 重要紧急", "P1 - 高优项目", "P2 - 常规项目"] as const;
-export const requirementStages = [
-  "待澄清",
-  "待评审",
-  "待开发",
-  "开发中",
-  "测试中",
-  "待上线",
-  "已上线",
-  "业务交付",
-  "暂缓",
-] as const;
-export const rejectReasons = [
-  "职责边界外",
-  "替别人做无效判断",
-  "信息不完整",
-  "无明确业务价值",
-  "重复事项",
-  "已有规则可自助解决",
-] as const;
-export const businessAreas = [
-  "线索获取",
-  "线索分配",
-  "触达转化",
-  "试听预约",
-  "试听履约",
-  "成单转化",
-  "销售效率",
-  "数据治理",
-  "AI 提效",
-  "流程规范",
-] as const;
+import {
+  WORK_ITEM_CATEGORIES,
+  PROCESS_PATHS,
+  WORK_ITEM_STATUSES,
+  REQUIREMENT_PRIORITIES,
+  REQUIREMENT_STAGES,
+  REJECT_REASONS,
+  BUSINESS_AREAS,
+  type PostLaunchActionId,
+} from "@/lib/option-config";
+
+export const workItemCategories = WORK_ITEM_CATEGORIES;
+export const processPaths = PROCESS_PATHS;
+export const workItemStatuses = WORK_ITEM_STATUSES;
+export const requirementPriorities = REQUIREMENT_PRIORITIES;
+export const requirementStages = REQUIREMENT_STAGES;
+export const rejectReasons = REJECT_REASONS;
+export const businessAreas = BUSINESS_AREAS;
 
 export type WorkItemCategory = (typeof workItemCategories)[number];
 export type ProcessPath = (typeof processPaths)[number];
@@ -70,6 +42,9 @@ export type WorkItemMeta = {
   relatedRule?: string | null;
   answerSummary?: string | null;
   needDoc?: boolean | null;
+  // 已上线需求：用户标记还有哪些“上线后动作”未完成。
+  // 数组为空或不存在 → 沉淀归档；有任意一项 → 持续跟进。
+  postLaunchActions?: PostLaunchActionId[] | null;
 };
 
 export type WorkItem = {
@@ -102,6 +77,7 @@ export type WorkItem = {
   relatedRule: string | null;
   answerSummary: string | null;
   needDoc: boolean | null;
+  postLaunchActions: PostLaunchActionId[];
   createdAt: string;
   updatedAt: string;
 };
@@ -153,6 +129,7 @@ export type CreateWorkItemInput = {
   relatedRule?: string | null;
   answerSummary?: string | null;
   needDoc?: boolean | null;
+  postLaunchActions?: PostLaunchActionId[] | null;
 };
 
 export type UpdateWorkItemInput = Partial<CreateWorkItemInput>;
@@ -224,6 +201,7 @@ export function workItemFromRow(row: WorkItemRow): WorkItem {
     relatedRule: meta.relatedRule ?? null,
     answerSummary: meta.answerSummary ?? null,
     needDoc: meta.needDoc ?? null,
+    postLaunchActions: meta.postLaunchActions ?? [],
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

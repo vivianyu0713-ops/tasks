@@ -6,6 +6,8 @@ import {
   AlertTriangle,
   ArrowRight,
   CheckCircle2,
+  ChevronsLeft,
+  ChevronsRight,
   Clock3,
   Clipboard,
   FileText,
@@ -29,7 +31,17 @@ import {
   type WorkItem,
   type WorkItemCategory,
 } from "@/lib/work-item-types";
+import {
+  CATEGORY_DISPLAY,
+  CATEGORY_TONE,
+  PRIORITY_TONE,
+  POST_LAUNCH_ACTIONS,
+  STAGE_TONE,
+  STATUS_TONE,
+  type PostLaunchActionId,
+} from "@/lib/option-config";
 import { dispatchRuleMatches, dispatchRules, type DispatchRule } from "@/lib/dispatch-rules";
+import { StatCard } from "@/components/stat-card";
 
 type WorkItemPatch = Partial<Omit<WorkItem, "reportedAt">> & {
   reportedAt?: string | null;
@@ -46,7 +58,7 @@ const navItems = [
 ] as const;
 
 type ViewId = (typeof navItems)[number]["id"];
-type ViewMode = "table" | "kanban";
+type ViewMode = "focus" | "table" | "kanban";
 type RequirementKanbanBy = "stage" | "priority" | "owner" | "risk";
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 type DashboardFilter = "active" | "waiting" | "overdue" | "unclassified";
@@ -57,50 +69,11 @@ function isRoutableCategory(category: WorkItemCategory): category is RoutableCat
   return routableCategories.includes(category as RoutableCategory);
 }
 
-const categoryTone: Record<WorkItemCategory, string> = {
-  任务: "bg-slate-100 text-slate-700 ring-slate-200",
-  需求: "bg-sky-100 text-sky-800 ring-sky-200",
-  线上问题: "bg-orange-100 text-orange-800 ring-orange-200",
-  逻辑答疑: "bg-violet-100 text-violet-800 ring-violet-200",
-  日常待办: "bg-emerald-100 text-emerald-800 ring-emerald-200",
-  不承接: "bg-zinc-200 text-zinc-700 ring-zinc-300",
-};
-
-const categoryDisplay: Record<WorkItemCategory, string> = {
-  任务: "待归类",
-  需求: "需求",
-  线上问题: "线上问题",
-  逻辑答疑: "逻辑答疑",
-  日常待办: "日常待办",
-  不承接: "低价值",
-};
-
-const statusTone: Record<WorkItem["status"], string> = {
-  已记录: "bg-slate-100 text-slate-700 ring-slate-200",
-  处理中: "bg-blue-100 text-blue-800 ring-blue-200",
-  待反馈: "bg-amber-100 text-amber-800 ring-amber-200",
-  待验证: "bg-cyan-100 text-cyan-800 ring-cyan-200",
-  已完成: "bg-emerald-100 text-emerald-800 ring-emerald-200",
-  暂不处理: "bg-zinc-200 text-zinc-700 ring-zinc-300",
-};
-
-const priorityTone: Record<string, string> = {
-  "P0 - 重要紧急": "bg-rose-100 text-rose-800 ring-rose-200",
-  "P1 - 高优项目": "bg-amber-100 text-amber-800 ring-amber-200",
-  "P2 - 常规项目": "bg-emerald-100 text-emerald-800 ring-emerald-200",
-};
-
-const stageTone: Record<string, string> = {
-  待澄清: "bg-slate-100 text-slate-700 ring-slate-200",
-  待评审: "bg-violet-100 text-violet-800 ring-violet-200",
-  待开发: "bg-indigo-100 text-indigo-800 ring-indigo-200",
-  开发中: "bg-blue-100 text-blue-800 ring-blue-200",
-  测试中: "bg-cyan-100 text-cyan-800 ring-cyan-200",
-  待上线: "bg-amber-100 text-amber-800 ring-amber-200",
-  已上线: "bg-emerald-100 text-emerald-800 ring-emerald-200",
-  业务交付: "bg-teal-100 text-teal-800 ring-teal-200",
-  暂缓: "bg-zinc-200 text-zinc-700 ring-zinc-300",
-};
+const categoryTone: Record<string, string> = CATEGORY_TONE;
+const categoryDisplay: Record<string, string> = CATEGORY_DISPLAY;
+const statusTone: Record<string, string> = STATUS_TONE;
+const priorityTone: Record<string, string> = PRIORITY_TONE;
+const stageTone: Record<string, string> = STAGE_TONE;
 
 function toDateTimeLocal(value?: string | null) {
   if (!value) return "";
@@ -444,43 +417,58 @@ function Dashboard({
   };
   const recommendations = getTodayRecommendations(items);
   const visibleRecommendations = recommendations.slice(0, 4);
-  const statusSignals = [
-    { label: "待反馈", value: waiting.length, className: "left-[18%] top-[30%] bg-amber-300 text-amber-300" },
-    { label: "超期", value: overdue.length, className: "right-[18%] top-[40%] bg-orange-400 text-orange-400" },
-    { label: "待分流", value: unclassified.length, className: "bottom-[24%] left-[34%] bg-sky-300 text-sky-300" },
-  ];
   const dashboardStats = [
     {
       id: "active" as DashboardFilter,
       title: "待处理",
       value: active.length,
       hint: "今天需要占用注意力",
-      icon: <LayoutDashboard size={18} />,
-      tone: "from-sky-400/25 to-cyan-300/10 text-sky-100 ring-sky-300/25",
+      icon: LayoutDashboard,
+      tone: {
+        ring: "ring-sky-200",
+        bg: "from-sky-50 to-cyan-50",
+        text: "text-sky-700",
+        icon: "bg-sky-100 text-sky-700",
+      },
     },
     {
       id: "waiting" as DashboardFilter,
       title: "待反馈",
       value: waiting.length,
       hint: "适合先催一下",
-      icon: <Clock3 size={18} />,
-      tone: "from-amber-300/25 to-orange-300/10 text-amber-100 ring-amber-300/25",
+      icon: Clock3,
+      tone: {
+        ring: "ring-amber-200",
+        bg: "from-amber-50 to-orange-50",
+        text: "text-amber-700",
+        icon: "bg-amber-100 text-amber-700",
+      },
     },
     {
       id: "overdue" as DashboardFilter,
       title: "已超期",
       value: overdue.length,
       hint: "需要立即处理风险",
-      icon: <AlertTriangle size={18} />,
-      tone: "from-rose-400/25 to-orange-300/10 text-rose-100 ring-rose-300/25",
+      icon: AlertTriangle,
+      tone: {
+        ring: "ring-rose-200",
+        bg: "from-rose-50 to-orange-50",
+        text: "text-rose-700",
+        icon: "bg-rose-100 text-rose-700",
+      },
     },
     {
       id: "unclassified" as DashboardFilter,
       title: "待分流",
       value: unclassified.length,
       hint: "还没判断归属",
-      icon: <Inbox size={18} />,
-      tone: "from-violet-400/25 to-slate-300/10 text-violet-100 ring-violet-300/25",
+      icon: Inbox,
+      tone: {
+        ring: "ring-violet-200",
+        bg: "from-violet-50 to-slate-50",
+        text: "text-violet-700",
+        icon: "bg-violet-100 text-violet-700",
+      },
     },
   ];
 
@@ -494,106 +482,57 @@ function Dashboard({
 
   return (
     <div className="grid min-w-0 gap-5">
-      <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1fr)_360px] 2xl:grid-cols-[minmax(0,1fr)_400px]">
-        <section className="min-w-0 rounded-[34px] border border-white/80 bg-white/90 p-4 shadow-2xl shadow-slate-200/70 ring-1 ring-slate-200/70 backdrop-blur sm:p-5">
-          <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
-            <div className="min-w-0">
-              <p className="inline-flex items-center gap-2 rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold text-sky-800 ring-1 ring-sky-200">
-                <Zap size={14} />
-                今天先处理
-              </p>
-              <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">先看这 4 条，不用重新翻表</h2>
-              <p className="mt-1 text-sm text-slate-500">从 {active.length} 个待处理事项里按规则挑出今天最值得先看的事项。</p>
-            </div>
-            <Badge tone="bg-slate-950 text-sky-100 ring-slate-900">{String(visibleRecommendations.length)} 条优先</Badge>
+      <section className="min-w-0 rounded-[32px] border border-white/70 bg-white/90 p-5 shadow-xl shadow-slate-200/60 ring-1 ring-slate-200/70 backdrop-blur">
+        <div className="flex flex-col justify-between gap-2 md:flex-row md:items-end">
+          <div className="min-w-0">
+            <p className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-3 py-1 text-xs font-semibold text-sky-100">
+              <Radio size={14} />
+              工作态势
+            </p>
+            <p className="mt-2 text-xs text-slate-500">点击任一数字卡片，下方列表会切换到对应队列。</p>
           </div>
-          <div className="mt-5 grid min-w-0 gap-3 lg:grid-cols-2">
-            {visibleRecommendations.length === 0 ? (
-              <div className="rounded-[28px] border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">
-                暂无需要今日调度的活跃事项。
-              </div>
-            ) : (
-              visibleRecommendations.map(({ item }) => (
-                <DispatchRecommendationCard key={item.id} item={item} onNavigate={onNavigate} onQuickSave={onQuickSave} />
-              ))
-            )}
+          <Badge tone="bg-slate-950 text-sky-100 ring-slate-900">总池 {active.length + unclassified.length} 条</Badge>
+        </div>
+        <div className="mt-4 grid min-w-0 grid-cols-2 gap-3 lg:grid-cols-4">
+          {dashboardStats.map((stat) => (
+            <StatCard
+              key={stat.id}
+              title={stat.title}
+              value={stat.value}
+              hint={stat.hint}
+              icon={stat.icon}
+              tone={stat.tone}
+              active={filter === stat.id}
+              onClick={() => handleStatClick(stat.id)}
+            />
+          ))}
+        </div>
+      </section>
+
+      <section className="min-w-0 rounded-[34px] border border-white/80 bg-white/90 p-4 shadow-2xl shadow-slate-200/70 ring-1 ring-slate-200/70 backdrop-blur sm:p-5">
+        <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+          <div className="min-w-0">
+            <p className="inline-flex items-center gap-2 rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold text-sky-800 ring-1 ring-sky-200">
+              <Zap size={14} />
+              今天先处理
+            </p>
+            <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">先看这 {visibleRecommendations.length} 条，不用重新翻表</h2>
+            <p className="mt-1 text-sm text-slate-500">从 {active.length} 个待处理事项里按规则挑出今天最值得先看的事项。</p>
           </div>
-        </section>
-
-        <aside className="grid min-w-0 content-start gap-4">
-          <section className="relative overflow-hidden rounded-[34px] bg-slate-950 p-5 text-white shadow-2xl shadow-slate-300/80 ring-1 ring-slate-900/10">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_8%,rgba(125,211,252,0.30),transparent_30%),radial-gradient(circle_at_88%_22%,rgba(167,139,250,0.22),transparent_30%),linear-gradient(135deg,#020617_0%,#0f172a_58%,#082f49_100%)]" />
-            <div className="absolute -bottom-24 right-0 h-48 w-48 rounded-full bg-sky-400/20 blur-3xl" />
-            <div className="relative z-10">
-              <div className="inline-flex items-center gap-2 rounded-full border border-sky-300/20 bg-white/10 px-3 py-1 text-xs font-medium text-sky-100 backdrop-blur">
-                <Radio size={14} />
-                今日盘面
-              </div>
-              <h3 className="mt-4 text-xl font-semibold tracking-tight">工作态势</h3>
-              <p className="mt-2 text-sm leading-6 text-slate-400">
-                这里是总池和风险入口，点击数字会展开底部完整列表。
-              </p>
+          <Badge tone="bg-slate-950 text-sky-100 ring-slate-900">{String(visibleRecommendations.length)} 条优先</Badge>
+        </div>
+        <div className="mt-5 grid min-w-0 gap-3 md:grid-cols-2">
+          {visibleRecommendations.length === 0 ? (
+            <div className="rounded-[28px] border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">
+              暂无需要今日调度的活跃事项。
             </div>
-
-            <div className="relative z-10 mt-5 grid gap-2">
-              {dashboardStats.map((stat) => (
-                <button
-                  key={stat.id}
-                  type="button"
-                  onClick={() => handleStatClick(stat.id)}
-                  className={`rounded-[22px] border p-3 text-left ring-1 transition hover:-translate-y-0.5 ${
-                    filter === stat.id
-                      ? `border-white/25 bg-gradient-to-br ${stat.tone} shadow-lg shadow-sky-950/40`
-                      : "border-white/10 bg-white/[0.07] text-slate-300 ring-white/10 hover:bg-white/[0.12]"
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="flex items-center gap-2">
-                      <span className="rounded-2xl bg-white/10 p-2 text-sky-100 ring-1 ring-white/10">{stat.icon}</span>
-                      <span>
-                        <span className="block text-sm font-semibold text-white">{stat.title}</span>
-                        <span className="mt-0.5 block text-xs text-slate-400">{stat.hint}</span>
-                      </span>
-                    </span>
-                    <span className="text-2xl font-semibold tracking-tight text-white">{stat.value}</span>
-                  </div>
-                </button>
-              ))}
-            </div>
-
-            <div className="relative z-10 mx-auto mt-5 h-36 max-w-[220px]">
-              <div className="absolute inset-5 rounded-full border border-sky-200/10" />
-              <div className="absolute inset-10 rounded-full border border-sky-200/10" />
-              <div className="absolute left-1/2 top-0 h-full w-px -translate-x-1/2 bg-sky-100/10" />
-              <div className="absolute top-1/2 left-0 h-px w-full -translate-y-1/2 bg-sky-100/10" />
-              <div className="absolute inset-0 rounded-full bg-[conic-gradient(from_20deg,transparent_0deg,rgba(56,189,248,0.28)_48deg,transparent_86deg)]" />
-              <div className="absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-sky-200 shadow-[0_0_28px_rgba(56,189,248,0.9)]" />
-              {statusSignals.map((signal) => (
-                <div key={signal.label} className={`absolute ${signal.className} h-2.5 w-2.5 rounded-full shadow-[0_0_20px_currentColor]`}>
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 whitespace-nowrap rounded-full border border-white/10 bg-slate-950/80 px-2 py-0.5 text-[10px] text-slate-200 backdrop-blur">
-                    {signal.label} {signal.value}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <details className="rounded-[28px] border border-slate-200 bg-white/85 p-4 text-sm text-slate-600 shadow-lg shadow-slate-200/50">
-            <summary className="cursor-pointer font-semibold text-slate-800">查看当前调度规则</summary>
-            <div className="mt-3 grid gap-2">
-              {dispatchRules.filter((rule) => rule.enabled).map((rule) => (
-                <div key={rule.id} className="rounded-2xl border border-slate-200 bg-white px-3 py-2">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="font-semibold text-slate-900">{rule.name}</span>
-                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">{rule.score} 分</span>
-                  </div>
-                  <p className="mt-1 text-xs leading-5 text-slate-500">{rule.explanation}</p>
-                </div>
-              ))}
-            </div>
-          </details>
-        </aside>
-      </div>
+          ) : (
+            visibleRecommendations.map(({ item }) => (
+              <DispatchRecommendationCard key={item.id} item={item} onNavigate={onNavigate} onQuickSave={onQuickSave} />
+            ))
+          )}
+        </div>
+      </section>
 
       <details
         ref={focusDetailsRef}
@@ -614,6 +553,22 @@ function Dashboard({
         </summary>
         <div className="overflow-x-auto border-t border-slate-100">
           <FocusTable items={focus} onNavigate={onNavigate} />
+        </div>
+        <div className="border-t border-slate-100 bg-slate-50/60 p-4">
+          <details className="rounded-2xl border border-slate-200 bg-white/85 p-3 text-sm">
+            <summary className="cursor-pointer font-semibold text-slate-800">查看当前调度规则</summary>
+            <div className="mt-3 grid gap-2 md:grid-cols-2">
+              {dispatchRules.filter((rule) => rule.enabled).map((rule) => (
+                <div key={rule.id} className="rounded-2xl border border-slate-200 bg-white px-3 py-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="font-semibold text-slate-900">{rule.name}</span>
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">{rule.score} 分</span>
+                  </div>
+                  <p className="mt-1 text-xs leading-5 text-slate-500">{rule.explanation}</p>
+                </div>
+              ))}
+            </div>
+          </details>
         </div>
       </details>
     </div>
@@ -982,6 +937,223 @@ function KanbanView({ items, groupBy }: { items: WorkItem[]; groupBy: Requiremen
   );
 }
 
+function RequirementFocusView({
+  items,
+  onQuickSave,
+}: {
+  items: WorkItem[];
+  onQuickSave: QuickSave;
+}) {
+  const requirements = items.filter((item) => item.category === "需求");
+  const activeReqs = requirements.filter(isActive);
+  const launched = requirements.filter((item) => item.requirementStage === "已上线" || item.requirementStage === "业务交付");
+  const activeStages = [
+    "待澄清",
+    "待评审",
+    "待开发",
+    "开发中",
+    "测试中",
+    "待上线",
+  ] as const;
+
+  // ① 今日聚焦：有风险/超期/本周待上线
+  const now = Date.now();
+  const weekEnd = now + 7 * 24 * 60 * 60 * 1000;
+  const todayFocus = activeReqs
+    .filter((item) => {
+      if (item.requirementPriority === "P0 - 重要紧急") return true;
+      if (item.riskNote) return true;
+      if (item.plannedLaunchAt) {
+        const t = new Date(item.plannedLaunchAt).getTime();
+        if (!Number.isNaN(t) && t <= weekEnd && t >= now - 7 * 24 * 60 * 60 * 1000) return true;
+      }
+      if (item.requirementStage === "待澄清" || item.requirementStage === "待评审") return true;
+      return false;
+    })
+    .slice(0, 5);
+
+  // ③ 已上线分两类
+  const launchedFollowUp = launched.filter((item) => item.postLaunchActions.length > 0);
+  const launchedArchived = launched.filter((item) => item.postLaunchActions.length === 0);
+
+  function togglePostLaunch(id: string, actionId: PostLaunchActionId, checked: boolean) {
+    const target = items.find((item) => item.id === id);
+    if (!target) return;
+    const current = target.postLaunchActions ?? [];
+    const next = checked
+      ? (Array.from(new Set([...current, actionId])) as PostLaunchActionId[])
+      : (current.filter((a) => a !== actionId) as PostLaunchActionId[]);
+    void onQuickSave(id, { postLaunchActions: next });
+  }
+
+  return (
+    <div className="grid gap-5">
+      {/* ① 今日聚焦 */}
+      <section className="rounded-[32px] border border-white/70 bg-white/90 p-5 shadow-xl shadow-slate-200/60 ring-1 ring-slate-200/70 backdrop-blur">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="inline-flex items-center gap-2 rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold text-sky-800 ring-1 ring-sky-200">
+              <Zap size={14} />
+              ① 今日聚焦
+            </p>
+            <h3 className="mt-3 text-lg font-semibold tracking-tight text-slate-950">这几条需求今天值得推一下</h3>
+            <p className="mt-1 text-sm text-slate-500">自动筛出 P0、有风险、本周要上线、或待澄清/待评审的需求。</p>
+          </div>
+          <Badge tone="bg-sky-100 text-sky-800 ring-sky-200">{todayFocus.length} 条</Badge>
+        </div>
+        <div className="mt-5 grid min-w-0 gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {todayFocus.length === 0 ? (
+            <div className="rounded-[24px] border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-500 md:col-span-2 xl:col-span-3">
+              暂时没有需要优先推动的需求。
+            </div>
+          ) : (
+            todayFocus.map((item) => (
+              <article key={item.id} className="rounded-[24px] border border-sky-100 bg-gradient-to-br from-white to-sky-50/50 p-4 shadow-sm ring-1 ring-slate-200/50 transition hover:-translate-y-0.5 hover:shadow-md">
+                <div className="flex items-start justify-between gap-3">
+                  <h4 className="truncate text-sm font-semibold text-slate-950">{item.title}</h4>
+                  <Badge tone={priorityTone[item.requirementPriority ?? ""] || "bg-slate-100 text-slate-700 ring-slate-200"}>
+                    {item.requirementPriority || "未设"}
+                  </Badge>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {item.requirementStage ? <Badge tone={stageTone[item.requirementStage]}>{item.requirementStage}</Badge> : null}
+                  {item.riskNote ? <Badge tone="bg-orange-100 text-orange-800 ring-orange-200">有风险</Badge> : null}
+                  {item.plannedLaunchAt ? (
+                    <Badge tone="bg-slate-100 text-slate-700 ring-slate-200">
+                      上线：{new Date(item.plannedLaunchAt).toLocaleDateString("zh-CN", { month: "short", day: "numeric" })}
+                    </Badge>
+                  ) : null}
+                </div>
+                <p className="mt-3 text-xs text-slate-500">
+                  研发：{item.rdOwner || item.owner || "-"} · 下一步：{item.nextAction || "待补充"}
+                </p>
+              </article>
+            ))
+          )}
+        </div>
+      </section>
+
+      {/* ② 推进管线 */}
+      <section className="rounded-[32px] border border-white/70 bg-white/90 p-5 shadow-xl shadow-slate-200/60 ring-1 ring-slate-200/70 backdrop-blur">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="inline-flex items-center gap-2 rounded-full bg-indigo-100 px-3 py-1 text-xs font-semibold text-indigo-800 ring-1 ring-indigo-200">
+              <LayoutDashboard size={14} />
+              ② 需求推进管线
+            </p>
+            <h3 className="mt-3 text-lg font-semibold tracking-tight text-slate-950">活跃阶段一览</h3>
+            <p className="mt-1 text-sm text-slate-500">只看还没上线的需求，按阶段列紧凑展示。</p>
+          </div>
+          <Badge tone="bg-indigo-100 text-indigo-800 ring-indigo-200">{activeReqs.length - launched.length} 条</Badge>
+        </div>
+        <div className="mt-5 grid gap-2 md:grid-cols-3 lg:grid-cols-6">
+          {activeStages.map((stage) => {
+            const stageItems = requirements.filter((item) => item.requirementStage === stage);
+            return (
+              <div key={stage} className="rounded-2xl border border-slate-200 bg-slate-50/50 p-3">
+                <div className="flex items-center justify-between">
+                  <Badge tone={stageTone[stage]}>{stage}</Badge>
+                  <span className="text-xs font-semibold text-slate-500">{stageItems.length}</span>
+                </div>
+                {stageItems.length > 0 ? (
+                  <div className="mt-2 space-y-1">
+                    {stageItems.slice(0, 3).map((it) => (
+                      <p key={it.id} className="truncate text-xs text-slate-600" title={it.title}>{it.title}</p>
+                    ))}
+                    {stageItems.length > 3 ? (
+                      <p className="text-[10px] text-slate-400">+{stageItems.length - 3} 条</p>
+                    ) : null}
+                  </div>
+                ) : (
+                  <p className="mt-2 text-xs text-slate-400">暂无</p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* ③ 已上线 · 持续跟进 */}
+      <section className="rounded-[32px] border border-white/70 bg-white/90 p-5 shadow-xl shadow-slate-200/60 ring-1 ring-slate-200/70 backdrop-blur">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="inline-flex items-center gap-2 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800 ring-1 ring-amber-200">
+              <Clipboard size={14} />
+              ③ 已上线 · 持续跟进
+            </p>
+            <h3 className="mt-3 text-lg font-semibold tracking-tight text-slate-950">我还有后续动作没做完</h3>
+            <p className="mt-1 text-sm text-slate-500">勾上任意一项就留在这里；全部取消会自动归入下方归档。</p>
+          </div>
+          <Badge tone="bg-amber-100 text-amber-800 ring-amber-200">{launchedFollowUp.length} 条</Badge>
+        </div>
+        <div className="mt-5 grid gap-3">
+          {launchedFollowUp.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">
+              已上线需求里没有待跟进的动作。
+            </div>
+          ) : (
+            launchedFollowUp.map((item) => (
+              <article key={item.id} className="rounded-2xl border border-amber-100 bg-gradient-to-br from-white to-amber-50/30 p-4 ring-1 ring-slate-200/60">
+                <div className="flex items-start justify-between gap-3">
+                  <h4 className="truncate text-sm font-semibold text-slate-950">{item.title}</h4>
+                  {item.actualLaunchAt ? (
+                    <Badge tone="bg-slate-100 text-slate-700 ring-slate-200">
+                      上线于 {new Date(item.actualLaunchAt).toLocaleDateString("zh-CN", { month: "short", day: "numeric" })}
+                    </Badge>
+                  ) : null}
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {POST_LAUNCH_ACTIONS.map((action) => {
+                    const checked = item.postLaunchActions.includes(action.id);
+                    return (
+                      <label key={action.id} className={`inline-flex cursor-pointer items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold ring-1 transition ${
+                        checked ? "bg-amber-500 text-white ring-amber-500" : "bg-white text-slate-600 ring-slate-200 hover:bg-slate-50"
+                      }`}>
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) => togglePostLaunch(item.id, action.id, e.currentTarget.checked)}
+                          className="h-3 w-3 rounded border-slate-300"
+                        />
+                        {action.label}
+                      </label>
+                    );
+                  })}
+                </div>
+              </article>
+            ))
+          )}
+        </div>
+      </section>
+
+      {/* ③ 已上线 · 沉淀归档 */}
+      <details className="rounded-[28px] border border-slate-200 bg-white/85 p-4 text-sm shadow-lg shadow-slate-200/50">
+        <summary className="flex cursor-pointer items-center justify-between gap-3">
+          <span className="font-semibold text-slate-800">已上线 · 沉淀归档（{launchedArchived.length} 条）</span>
+          <Badge tone="bg-slate-100 text-slate-700 ring-slate-200">无需跟进</Badge>
+        </summary>
+        <p className="mt-3 text-xs text-slate-500">这些需求已完成所有后续动作，作为历史沉淀留在这里。</p>
+        {launchedArchived.length > 0 ? (
+          <ul className="mt-3 space-y-1 border-t border-slate-100 pt-3">
+            {launchedArchived.map((item) => (
+              <li key={item.id} className="flex items-center justify-between gap-3 rounded-lg px-2 py-1 hover:bg-slate-50">
+                <span className="truncate text-xs text-slate-600">{item.title}</span>
+                {item.actualLaunchAt ? (
+                  <span className="shrink-0 text-[10px] text-slate-400">
+                    {new Date(item.actualLaunchAt).toLocaleDateString("zh-CN", { month: "short", day: "numeric" })}
+                  </span>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-3 text-xs text-slate-400">暂无沉淀需求。</p>
+        )}
+      </details>
+    </div>
+  );
+}
+
 function IssueDesk({ items, onQuickSave }: { items: WorkItem[]; onQuickSave: QuickSave }) {
   const activeIssues = items
     .filter(isActive)
@@ -1186,7 +1358,7 @@ function QaKnowledgeView({
 
 export function ClassifiedWorkbench() {
   const [activeView, setActiveView] = useState<ViewId>("dashboard");
-  const [requirementMode, setRequirementMode] = useState<ViewMode>("table");
+  const [requirementMode, setRequirementMode] = useState<ViewMode>("focus");
   const [requirementKanbanBy, setRequirementKanbanBy] = useState<RequirementKanbanBy>("stage");
   const [items, setItems] = useState<WorkItem[]>([]);
   const [qaSearch, setQaSearch] = useState("");
@@ -1196,6 +1368,23 @@ export function ClassifiedWorkbench() {
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [saveMessage, setSaveMessage] = useState("");
   const saveTimerRef = useRef<number | null>(null);
+  const [navCollapsed, setNavCollapsed] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const stored = window.localStorage.getItem("signal-desk:nav-collapsed");
+    if (stored === "true") setNavCollapsed(true);
+  }, []);
+
+  function toggleNavCollapsed() {
+    setNavCollapsed((prev) => {
+      const next = !prev;
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem("signal-desk:nav-collapsed", String(next));
+      }
+      return next;
+    });
+  }
 
   async function loadItems() {
     setLoading(true);
@@ -1320,34 +1509,63 @@ export function ClassifiedWorkbench() {
 
   function viewTitle() {
     return navItems.find((item) => item.id === activeView)?.label ?? "工作台";
+    
   }
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.18),transparent_28%),linear-gradient(135deg,#e0f2fe_0%,#f8fafc_38%,#eef2ff_100%)] text-slate-950">
       <div className="mx-auto flex min-h-screen w-full min-w-0 max-w-[1480px]">
-        <aside className="hidden w-64 shrink-0 border-r border-white/10 bg-slate-950 px-4 py-6 text-white shadow-2xl shadow-slate-950/30 lg:block xl:w-72 xl:px-5">
-          <div className="mb-8">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-300 text-slate-950 shadow-lg shadow-sky-500/30">
-              <Radio size={22} />
+        <aside className={`hidden shrink-0 border-r border-white/10 bg-slate-950 py-6 text-white shadow-2xl shadow-slate-950/30 lg:block transition-all duration-300 ${navCollapsed ? "w-20 px-3" : "w-64 px-4 xl:w-72 xl:px-5"}`}>
+          <div className={`mb-8 ${navCollapsed ? "flex flex-col items-center" : ""}`}>
+            <div className="relative">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-300 text-slate-950 shadow-lg shadow-sky-500/30">
+                <Radio size={22} />
+              </div>
+              <button
+                type="button"
+                onClick={toggleNavCollapsed}
+                title={navCollapsed ? "展开导航" : "收起导航"}
+                className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full border border-white/20 bg-slate-900 text-sky-200 ring-1 ring-sky-400/30 transition hover:bg-sky-300 hover:text-slate-950"
+              >
+                {navCollapsed ? <ChevronsRight size={14} /> : <ChevronsLeft size={14} />}
+              </button>
             </div>
-            <p className="mt-5 text-sm font-medium text-slate-400">个人工作雷达</p>
-            <h1 className="mt-2 text-2xl font-semibold tracking-tight">Signal Desk</h1>
-            <p className="mt-2 text-xs leading-5 text-slate-500">收集信号、判断归属、保护精力。</p>
+            {!navCollapsed && (
+              <>
+                <p className="mt-5 text-sm font-medium text-slate-400">个人工作雷达</p>
+                <h1 className="mt-2 text-2xl font-semibold tracking-tight">Signal Desk</h1>
+                <p className="mt-2 text-xs leading-5 text-slate-500">收集信号、判断归属、保护精力。</p>
+              </>
+            )}
           </div>
           <nav className="space-y-1">
             {navItems.map((item) => (
-              <button key={item.id} type="button" onClick={() => setActiveView(item.id)} className={`flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm font-medium transition ${activeView === item.id ? "bg-sky-300 text-slate-950 shadow-lg shadow-sky-500/20" : "text-slate-400 hover:bg-white/5 hover:text-white"}`}>
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setActiveView(item.id)}
+                title={item.label}
+                className={`flex w-full items-center text-left text-sm font-medium transition ${
+                  navCollapsed ? "justify-center gap-3 rounded-xl px-2 py-3" : "gap-3 rounded-2xl px-3 py-2.5"
+                } ${
+                  activeView === item.id
+                    ? "bg-sky-300 text-slate-950 shadow-lg shadow-sky-500/20"
+                    : "text-slate-400 hover:bg-white/5 hover:text-white"
+                }`}
+              >
                 <item.icon size={18} />
-                {item.label}
+                {!navCollapsed && <span>{item.label}</span>}
               </button>
             ))}
           </nav>
-          <div className="mt-10 rounded-3xl border border-white/10 bg-white/5 p-4">
-            <p className="text-sm font-semibold text-sky-200">设计原则</p>
-            <p className="mt-2 text-xs leading-5 text-slate-400">
-              收集只做进件，表格负责推进，答疑结论自动沉淀。
-            </p>
-          </div>
+          {!navCollapsed && (
+            <div className="mt-10 rounded-3xl border border-white/10 bg-white/5 p-4">
+              <p className="text-sm font-semibold text-sky-200">设计原则</p>
+              <p className="mt-2 text-xs leading-5 text-slate-400">
+                收集只做进件，表格负责推进，答疑结论自动沉淀。
+              </p>
+            </div>
+          )}
         </aside>
 
         <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 xl:px-8">
@@ -1355,7 +1573,7 @@ export function ClassifiedWorkbench() {
             <div className="min-w-0">
               <p className="text-sm font-medium text-sky-700">{viewTitle()}</p>
               <h2 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-                {activeView === "dashboard" ? "工作总览，而不是录入页" : activeView === "inbox" ? "快速收集，后续分流" : `${viewTitle()}管理`}
+                {activeView === "dashboard" ? "工作总览" : activeView === "inbox" ? "快速收集，后续分流" : `${viewTitle()}管理`}
               </h2>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
                 高频字段直接在表格里改；需求看板支持多维度查看。
@@ -1395,9 +1613,13 @@ export function ClassifiedWorkbench() {
               <div className="flex flex-col justify-between gap-3 rounded-[28px] border border-white/70 bg-white/80 p-3 shadow-xl shadow-slate-200/60 backdrop-blur md:flex-row md:items-center">
                 <div className="px-2">
                   <p className="text-sm font-semibold text-slate-950">需求视图</p>
-                  <p className="mt-1 text-xs text-slate-500">表格用于直接维护字段；看板可按阶段、优先级、负责人和风险查看。</p>
+                  <p className="mt-1 text-xs text-slate-500">聚焦视图默认看动作；表格维护字段；看板切换维度。</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
+                  <button type="button" onClick={() => setRequirementMode("focus")} className={`inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold transition ${requirementMode === "focus" ? "bg-slate-950 text-white shadow-lg shadow-slate-300" : "bg-white text-slate-600 hover:bg-slate-50"}`}>
+                    <Sparkles size={16} />
+                    聚焦视图
+                  </button>
                   <button type="button" onClick={() => setRequirementMode("table")} className={`inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold transition ${requirementMode === "table" ? "bg-slate-950 text-white shadow-lg shadow-slate-300" : "bg-white text-slate-600 hover:bg-slate-50"}`}>
                     <Table2 size={16} />
                     表格视图
@@ -1408,33 +1630,35 @@ export function ClassifiedWorkbench() {
                   </button>
                 </div>
               </div>
-              {requirementMode === "kanban" ? (
-                <div className="flex flex-wrap gap-2 rounded-[24px] border border-white/70 bg-white/70 p-2 shadow-lg shadow-slate-200/50">
-                  {[
-                    ["stage", "按推进阶段"],
-                    ["priority", "按优先级"],
-                    ["owner", "按负责人"],
-                    ["risk", "按风险"],
-                  ].map(([value, label]) => (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() => setRequirementKanbanBy(value as RequirementKanbanBy)}
-                      className={`rounded-2xl px-3 py-1.5 text-xs font-semibold transition ${
-                        requirementKanbanBy === value ? "bg-slate-950 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-              {requirementMode === "table" ? (
+              {requirementMode === "focus" ? (
+                <RequirementFocusView items={visibleItems} onQuickSave={updateItem} />
+              ) : requirementMode === "kanban" ? (
+                <>
+                  <div className="flex flex-wrap gap-2 rounded-[24px] border border-white/70 bg-white/70 p-2 shadow-lg shadow-slate-200/50">
+                    {[
+                      ["stage", "按推进阶段"],
+                      ["priority", "按优先级"],
+                      ["owner", "按负责人"],
+                      ["risk", "按风险"],
+                    ].map(([value, label]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => setRequirementKanbanBy(value as RequirementKanbanBy)}
+                        className={`rounded-2xl px-3 py-1.5 text-xs font-semibold transition ${
+                          requirementKanbanBy === value ? "bg-slate-950 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  <KanbanView items={visibleItems} groupBy={requirementKanbanBy} />
+                </>
+              ) : (
                 <section className="overflow-hidden rounded-[32px] border border-white/70 bg-white/90 shadow-2xl shadow-slate-200/70 ring-1 ring-slate-200/70 backdrop-blur">
                   <ItemTable items={visibleItems} variant="requirement" onQuickSave={updateItem} />
                 </section>
-              ) : (
-                <KanbanView items={visibleItems} groupBy={requirementKanbanBy} />
               )}
             </div>
           ) : activeView === "线上问题" ? (
