@@ -16,7 +16,6 @@ import {
   Plus,
   Radio,
   RotateCw,
-  Send,
   Sparkles,
   Table2,
   Zap,
@@ -153,58 +152,9 @@ function getCopyableReply(item: WorkItem) {
   return `关于「${item.title}」，目前确认：${conclusion}${related ? `\n${related}` : ""}\n如后续还有具体 case，可以继续补充我再一起核对。`;
 }
 
-function StatCard({
-  title,
-  value,
-  hint,
-  icon: Icon,
-  accent = "sky",
-  active = false,
-  onClick,
-}: {
-  title: string;
-  value: number;
-  hint: string;
-  icon: typeof LayoutDashboard;
-  accent?: "sky" | "amber" | "slate" | "emerald" | "rose";
-  active?: boolean;
-  onClick?: () => void;
-}) {
-  const accentClass = {
-    sky: "from-sky-100 to-cyan-50 text-sky-700 ring-sky-100",
-    amber: "from-amber-100 to-orange-50 text-amber-700 ring-amber-100",
-    slate: "from-slate-100 to-slate-50 text-slate-700 ring-slate-100",
-    emerald: "from-emerald-100 to-teal-50 text-emerald-700 ring-emerald-100",
-    rose: "from-rose-100 to-orange-50 text-rose-700 ring-rose-100",
-  }[accent];
-
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`group relative overflow-hidden rounded-[28px] border p-4 text-left shadow-xl shadow-slate-200/60 ring-1 transition duration-300 hover:-translate-y-0.5 hover:border-sky-200 hover:shadow-2xl hover:shadow-sky-100/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300 ${
-        active ? "border-sky-300 bg-white ring-sky-200" : "border-white/80 bg-white/80 ring-slate-200/70"
-      }`}
-    >
-      <div className={`absolute -right-12 -top-12 h-28 w-28 rounded-full bg-gradient-to-br blur-2xl ${accentClass}`} />
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-slate-500">{title}</span>
-        <span className={`rounded-2xl bg-gradient-to-br p-2 ring-1 ${accentClass}`}>
-          <Icon size={18} />
-        </span>
-      </div>
-      <div className="mt-4 flex items-end justify-between gap-3">
-        <div className="text-3xl font-semibold tracking-tight text-slate-950">{value}</div>
-        <span className={`h-1.5 flex-1 rounded-full bg-gradient-to-r ${active ? "from-sky-400 to-cyan-300" : "from-slate-200 to-slate-100"}`} />
-      </div>
-      <p className="mt-2 text-xs leading-5 text-slate-500">{hint}</p>
-    </button>
-  );
-}
-
 function Badge({ children, tone }: { children: React.ReactNode; tone?: string }) {
   return (
-    <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ring-1 ${tone ?? "bg-slate-100 text-slate-700 ring-slate-200"}`}>
+    <span className={`inline-flex w-fit rounded-full px-2.5 py-1 text-xs font-medium ring-1 ${tone ?? "bg-slate-100 text-slate-700 ring-slate-200"}`}>
       {children}
     </span>
   );
@@ -333,63 +283,6 @@ function EditableSelect<T extends string>({
   );
 }
 
-function RadarPanel({
-  active,
-  overdue,
-  waiting,
-  unclassified,
-}: {
-  active: number;
-  overdue: number;
-  waiting: number;
-  unclassified: number;
-}) {
-  const signals = [
-    { label: "待反馈", value: waiting, className: "left-[18%] top-[28%] bg-amber-300" },
-    { label: "超期", value: overdue, className: "right-[20%] top-[36%] bg-orange-400" },
-    { label: "待分流", value: unclassified, className: "bottom-[24%] left-[34%] bg-sky-300" },
-  ];
-
-  return (
-    <section className="relative overflow-hidden rounded-[34px] border border-slate-900/10 bg-slate-950 p-5 text-white shadow-2xl shadow-slate-300/80">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_55%_50%,rgba(56,189,248,0.24),transparent_34%),linear-gradient(135deg,rgba(15,23,42,0.1),rgba(2,6,23,0.92))]" />
-      <div className="relative z-10 flex items-start justify-between gap-4">
-        <div>
-          <div className="inline-flex items-center gap-2 rounded-full border border-sky-300/20 bg-sky-300/10 px-3 py-1 text-xs font-medium text-sky-200">
-            <Radio size={14} />
-            工作雷达
-          </div>
-          <h3 className="mt-4 text-xl font-semibold tracking-tight">今日信号扫描</h3>
-          <p className="mt-2 max-w-xs text-sm leading-6 text-slate-400">
-            把私聊、需求、线上问题和待分流事项压缩成一张态势图，先判断信号，再决定是否投入精力。
-          </p>
-        </div>
-        <div className="rounded-3xl border border-white/10 bg-white/5 px-4 py-3 text-right backdrop-blur">
-          <p className="text-xs text-slate-400">活跃信号</p>
-          <p className="mt-1 text-3xl font-semibold text-sky-200">{active}</p>
-        </div>
-      </div>
-
-      <div className="relative z-10 mx-auto mt-6 h-64 max-w-sm">
-        <div className="absolute inset-8 rounded-full border border-sky-200/10" />
-        <div className="absolute inset-16 rounded-full border border-sky-200/10" />
-        <div className="absolute inset-24 rounded-full border border-sky-200/10" />
-        <div className="absolute left-1/2 top-0 h-full w-px -translate-x-1/2 bg-sky-100/10" />
-        <div className="absolute top-1/2 left-0 h-px w-full -translate-y-1/2 bg-sky-100/10" />
-        <div className="absolute inset-0 rounded-full bg-[conic-gradient(from_20deg,transparent_0deg,rgba(56,189,248,0.28)_48deg,transparent_86deg)]" />
-        <div className="absolute left-1/2 top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-sky-200 shadow-[0_0_30px_rgba(56,189,248,0.9)]" />
-        {signals.map((signal) => (
-          <div key={signal.label} className={`absolute ${signal.className} h-3 w-3 rounded-full shadow-[0_0_22px_currentColor]`}>
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 whitespace-nowrap rounded-full border border-white/10 bg-slate-950/80 px-2 py-1 text-[11px] text-slate-200 backdrop-blur">
-              {signal.label} {signal.value}
-            </span>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
 function FocusTable({
   items,
   onNavigate,
@@ -457,9 +350,11 @@ function DispatchRecommendationCard({
   const canConvertToRequirement = item.category === "线上问题" || item.processPath === "转需求" || item.convertedRequirement;
 
   return (
-    <article className="rounded-[28px] border border-slate-200 bg-white/90 p-4 shadow-lg shadow-slate-200/60 transition hover:-translate-y-0.5 hover:border-sky-200 hover:shadow-xl hover:shadow-sky-100/70">
+    <article className="group relative min-w-0 overflow-hidden rounded-[30px] border border-white bg-gradient-to-br from-white via-white to-sky-50/70 p-4 shadow-xl shadow-slate-200/70 ring-1 ring-slate-200/70 transition hover:-translate-y-0.5 hover:border-sky-200 hover:shadow-2xl hover:shadow-sky-100/80">
+      <div className="absolute inset-y-5 left-0 w-1 rounded-r-full bg-gradient-to-b from-sky-400 via-cyan-300 to-violet-300" />
+      <div className="absolute -right-12 -top-16 h-36 w-36 rounded-full bg-sky-200/35 blur-3xl transition group-hover:bg-sky-300/40" />
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
+        <div className="relative min-w-0">
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <Badge tone={signal.tone}>{signal.label}</Badge>
             <Badge tone={categoryTone[item.category]}>{categoryDisplay[item.category]}</Badge>
@@ -470,20 +365,20 @@ function DispatchRecommendationCard({
         <button
           type="button"
           onClick={() => onNavigate(item.category)}
-          className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm transition hover:border-sky-200 hover:text-sky-700"
+          className="relative shrink-0 rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm ring-1 ring-slate-200 transition hover:bg-slate-950 hover:text-white"
         >
           去处理
         </button>
       </div>
-      <div className="mt-4 rounded-2xl bg-slate-50 px-3 py-2 text-sm text-slate-600">
+      <div className="relative mt-4 rounded-2xl bg-white/75 px-3 py-2 text-sm text-slate-600 ring-1 ring-slate-100">
         建议动作：<span className="font-semibold text-slate-950">{signal.action}</span>
         {item.nextAction ? <span className="ml-2 text-slate-400">下一步：{item.nextAction}</span> : null}
       </div>
-      <details className="mt-3 rounded-2xl border border-slate-100 bg-white px-3 py-2 text-xs text-slate-500">
+      <details className="relative mt-3 rounded-2xl border border-slate-100 bg-white/80 px-3 py-2 text-xs text-slate-500">
         <summary className="cursor-pointer font-semibold text-slate-700">为什么推荐？命中「{signal.name}」 · {signal.score} 分</summary>
         <p className="mt-2 leading-5">{signal.explanation}</p>
       </details>
-      <div className="mt-4 flex flex-wrap gap-2">
+      <div className="relative mt-4 flex flex-wrap gap-2">
         <button
           type="button"
           onClick={() => void onQuickSave(item.id, { status: "已完成" })}
@@ -525,6 +420,8 @@ function Dashboard({
   onQuickSave: QuickSave;
 }) {
   const [filter, setFilter] = useState<DashboardFilter>("active");
+  const [focusExpanded, setFocusExpanded] = useState(false);
+  const focusDetailsRef = useRef<HTMLDetailsElement>(null);
   const active = items.filter(isActive);
   const overdue = active.filter(isOverdue);
   const waiting = active.filter((item) => item.status === "待反馈");
@@ -546,96 +443,179 @@ function Dashboard({
     unclassified: { title: "待分流事项", hint: "仍在待归类池，需要判断归属和下一步。" },
   };
   const recommendations = getTodayRecommendations(items);
+  const visibleRecommendations = recommendations.slice(0, 4);
+  const statusSignals = [
+    { label: "待反馈", value: waiting.length, className: "left-[18%] top-[30%] bg-amber-300 text-amber-300" },
+    { label: "超期", value: overdue.length, className: "right-[18%] top-[40%] bg-orange-400 text-orange-400" },
+    { label: "待分流", value: unclassified.length, className: "bottom-[24%] left-[34%] bg-sky-300 text-sky-300" },
+  ];
+  const dashboardStats = [
+    {
+      id: "active" as DashboardFilter,
+      title: "待处理",
+      value: active.length,
+      hint: "今天需要占用注意力",
+      icon: <LayoutDashboard size={18} />,
+      tone: "from-sky-400/25 to-cyan-300/10 text-sky-100 ring-sky-300/25",
+    },
+    {
+      id: "waiting" as DashboardFilter,
+      title: "待反馈",
+      value: waiting.length,
+      hint: "适合先催一下",
+      icon: <Clock3 size={18} />,
+      tone: "from-amber-300/25 to-orange-300/10 text-amber-100 ring-amber-300/25",
+    },
+    {
+      id: "overdue" as DashboardFilter,
+      title: "已超期",
+      value: overdue.length,
+      hint: "需要立即处理风险",
+      icon: <AlertTriangle size={18} />,
+      tone: "from-rose-400/25 to-orange-300/10 text-rose-100 ring-rose-300/25",
+    },
+    {
+      id: "unclassified" as DashboardFilter,
+      title: "待分流",
+      value: unclassified.length,
+      hint: "还没判断归属",
+      icon: <Inbox size={18} />,
+      tone: "from-violet-400/25 to-slate-300/10 text-violet-100 ring-violet-300/25",
+    },
+  ];
+
+  function handleStatClick(nextFilter: DashboardFilter) {
+    setFilter(nextFilter);
+    setFocusExpanded(true);
+    requestAnimationFrame(() => {
+      focusDetailsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
 
   return (
-    <div className="grid gap-6">
-      <section className="overflow-hidden rounded-[36px] border border-white/80 bg-white/75 p-5 shadow-2xl shadow-slate-200/70 ring-1 ring-slate-200/70 backdrop-blur">
-        <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-3 py-1 text-xs font-medium text-sky-200">
-              <Zap size={14} />
-              今日调度
-            </div>
-            <h2 className="mt-4 text-2xl font-semibold tracking-tight text-slate-950">先看风险，再决定投入顺序</h2>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-              首页只回答三个问题：现在有多少事、哪类最消耗精力、下一步先处理什么。
-            </p>
-          </div>
-          <div className="rounded-3xl border border-slate-200 bg-white/80 px-4 py-3 text-sm text-slate-500 shadow-lg shadow-slate-200/50">
-            当前筛选：<span className="font-semibold text-slate-950">{filterMeta[filter].title}</span>
-          </div>
-        </div>
-        <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <StatCard title="待处理" value={active.length} hint="需要继续推进" icon={LayoutDashboard} accent="sky" active={filter === "active"} onClick={() => setFilter("active")} />
-          <StatCard title="待反馈" value={waiting.length} hint="等待对接人反馈" icon={Clock3} accent="amber" active={filter === "waiting"} onClick={() => setFilter("waiting")} />
-          <StatCard title="已超期" value={overdue.length} hint="超过预期时间" icon={AlertTriangle} accent="rose" active={filter === "overdue"} onClick={() => setFilter("overdue")} />
-          <StatCard title="待分流" value={unclassified.length} hint="仍属于待归类池" icon={Inbox} accent="slate" active={filter === "unclassified"} onClick={() => setFilter("unclassified")} />
-        </div>
-      </section>
-
-      <section className="rounded-[36px] border border-white/80 bg-white/85 p-5 shadow-2xl shadow-slate-200/70 ring-1 ring-slate-200/70 backdrop-blur">
-        <div className="flex flex-col justify-between gap-3 md:flex-row md:items-end">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-3 py-1 text-xs font-medium text-sky-200">
-              <Send size={14} />
-              今日建议处理
-            </div>
-            <h2 className="mt-3 text-xl font-semibold tracking-tight text-slate-950">先处理这几条，不用重新翻表</h2>
-            <p className="mt-1 text-sm text-slate-500">按超期、待反馈、待分流、线上问题和可沉淀价值自动排序。</p>
-          </div>
-          <Badge tone="bg-sky-100 text-sky-800 ring-sky-200">{String(recommendations.length)} 条建议</Badge>
-        </div>
-        <div className="mt-5 grid gap-3 xl:grid-cols-2">
-          {recommendations.length === 0 ? (
-            <div className="rounded-[28px] border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">
-              暂无需要今日调度的活跃事项。
-            </div>
-          ) : (
-            recommendations.map(({ item }) => (
-              <DispatchRecommendationCard key={item.id} item={item} onNavigate={onNavigate} onQuickSave={onQuickSave} />
-            ))
-          )}
-        </div>
-        <details className="mt-5 rounded-[24px] border border-slate-200 bg-slate-50/80 p-4 text-sm text-slate-600">
-          <summary className="cursor-pointer font-semibold text-slate-800">查看当前调度规则</summary>
-          <div className="mt-3 grid gap-2 md:grid-cols-2">
-            {dispatchRules.filter((rule) => rule.enabled).map((rule) => (
-              <div key={rule.id} className="rounded-2xl border border-slate-200 bg-white px-3 py-2">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="font-semibold text-slate-900">{rule.name}</span>
-                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">{rule.score} 分</span>
-                </div>
-                <p className="mt-1 text-xs leading-5 text-slate-500">{rule.explanation}</p>
-              </div>
-            ))}
-          </div>
-        </details>
-      </section>
-
-      <div className="grid gap-6 2xl:grid-cols-[minmax(0,1.35fr)_420px]">
-        <section className="overflow-hidden rounded-[36px] border border-white/70 bg-white/90 p-5 shadow-2xl shadow-slate-200/70 ring-1 ring-slate-200/70 backdrop-blur">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <div className="inline-flex items-center gap-2 rounded-full bg-sky-100 px-3 py-1 text-xs font-medium text-sky-800 ring-1 ring-sky-200">
+    <div className="grid min-w-0 gap-5">
+      <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1fr)_360px] 2xl:grid-cols-[minmax(0,1fr)_400px]">
+        <section className="min-w-0 rounded-[34px] border border-white/80 bg-white/90 p-4 shadow-2xl shadow-slate-200/70 ring-1 ring-slate-200/70 backdrop-blur sm:p-5">
+          <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+            <div className="min-w-0">
+              <p className="inline-flex items-center gap-2 rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold text-sky-800 ring-1 ring-sky-200">
                 <Zap size={14} />
-                工作聚焦队列
-              </div>
-              <h2 className="mt-3 text-xl font-semibold tracking-tight text-slate-950">{filterMeta[filter].title}</h2>
-              <p className="mt-1 text-sm text-slate-500">{filterMeta[filter].hint}</p>
+                今天先处理
+              </p>
+              <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">先看这 4 条，不用重新翻表</h2>
+              <p className="mt-1 text-sm text-slate-500">从 {active.length} 个待处理事项里按规则挑出今天最值得先看的事项。</p>
             </div>
-            <Badge tone="bg-sky-100 text-sky-800 ring-sky-200">{String(focus.length)} 条</Badge>
+            <Badge tone="bg-slate-950 text-sky-100 ring-slate-900">{String(visibleRecommendations.length)} 条优先</Badge>
           </div>
-          <div className="mt-5 overflow-hidden rounded-3xl border border-slate-200/80">
-            <FocusTable items={focus} onNavigate={onNavigate} />
+          <div className="mt-5 grid min-w-0 gap-3 lg:grid-cols-2">
+            {visibleRecommendations.length === 0 ? (
+              <div className="rounded-[28px] border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">
+                暂无需要今日调度的活跃事项。
+              </div>
+            ) : (
+              visibleRecommendations.map(({ item }) => (
+                <DispatchRecommendationCard key={item.id} item={item} onNavigate={onNavigate} onQuickSave={onQuickSave} />
+              ))
+            )}
           </div>
         </section>
-        <RadarPanel
-          active={active.length}
-          overdue={overdue.length}
-          waiting={waiting.length}
-          unclassified={unclassified.length}
-        />
+
+        <aside className="grid min-w-0 content-start gap-4">
+          <section className="relative overflow-hidden rounded-[34px] bg-slate-950 p-5 text-white shadow-2xl shadow-slate-300/80 ring-1 ring-slate-900/10">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_8%,rgba(125,211,252,0.30),transparent_30%),radial-gradient(circle_at_88%_22%,rgba(167,139,250,0.22),transparent_30%),linear-gradient(135deg,#020617_0%,#0f172a_58%,#082f49_100%)]" />
+            <div className="absolute -bottom-24 right-0 h-48 w-48 rounded-full bg-sky-400/20 blur-3xl" />
+            <div className="relative z-10">
+              <div className="inline-flex items-center gap-2 rounded-full border border-sky-300/20 bg-white/10 px-3 py-1 text-xs font-medium text-sky-100 backdrop-blur">
+                <Radio size={14} />
+                今日盘面
+              </div>
+              <h3 className="mt-4 text-xl font-semibold tracking-tight">工作态势</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-400">
+                这里是总池和风险入口，点击数字会展开底部完整列表。
+              </p>
+            </div>
+
+            <div className="relative z-10 mt-5 grid gap-2">
+              {dashboardStats.map((stat) => (
+                <button
+                  key={stat.id}
+                  type="button"
+                  onClick={() => handleStatClick(stat.id)}
+                  className={`rounded-[22px] border p-3 text-left ring-1 transition hover:-translate-y-0.5 ${
+                    filter === stat.id
+                      ? `border-white/25 bg-gradient-to-br ${stat.tone} shadow-lg shadow-sky-950/40`
+                      : "border-white/10 bg-white/[0.07] text-slate-300 ring-white/10 hover:bg-white/[0.12]"
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="flex items-center gap-2">
+                      <span className="rounded-2xl bg-white/10 p-2 text-sky-100 ring-1 ring-white/10">{stat.icon}</span>
+                      <span>
+                        <span className="block text-sm font-semibold text-white">{stat.title}</span>
+                        <span className="mt-0.5 block text-xs text-slate-400">{stat.hint}</span>
+                      </span>
+                    </span>
+                    <span className="text-2xl font-semibold tracking-tight text-white">{stat.value}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            <div className="relative z-10 mx-auto mt-5 h-36 max-w-[220px]">
+              <div className="absolute inset-5 rounded-full border border-sky-200/10" />
+              <div className="absolute inset-10 rounded-full border border-sky-200/10" />
+              <div className="absolute left-1/2 top-0 h-full w-px -translate-x-1/2 bg-sky-100/10" />
+              <div className="absolute top-1/2 left-0 h-px w-full -translate-y-1/2 bg-sky-100/10" />
+              <div className="absolute inset-0 rounded-full bg-[conic-gradient(from_20deg,transparent_0deg,rgba(56,189,248,0.28)_48deg,transparent_86deg)]" />
+              <div className="absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-sky-200 shadow-[0_0_28px_rgba(56,189,248,0.9)]" />
+              {statusSignals.map((signal) => (
+                <div key={signal.label} className={`absolute ${signal.className} h-2.5 w-2.5 rounded-full shadow-[0_0_20px_currentColor]`}>
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 whitespace-nowrap rounded-full border border-white/10 bg-slate-950/80 px-2 py-0.5 text-[10px] text-slate-200 backdrop-blur">
+                    {signal.label} {signal.value}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <details className="rounded-[28px] border border-slate-200 bg-white/85 p-4 text-sm text-slate-600 shadow-lg shadow-slate-200/50">
+            <summary className="cursor-pointer font-semibold text-slate-800">查看当前调度规则</summary>
+            <div className="mt-3 grid gap-2">
+              {dispatchRules.filter((rule) => rule.enabled).map((rule) => (
+                <div key={rule.id} className="rounded-2xl border border-slate-200 bg-white px-3 py-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="font-semibold text-slate-900">{rule.name}</span>
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">{rule.score} 分</span>
+                  </div>
+                  <p className="mt-1 text-xs leading-5 text-slate-500">{rule.explanation}</p>
+                </div>
+              ))}
+            </div>
+          </details>
+        </aside>
       </div>
+
+      <details
+        ref={focusDetailsRef}
+        open={focusExpanded}
+        onToggle={(event) => setFocusExpanded(event.currentTarget.open)}
+        className="overflow-hidden rounded-[32px] border border-white/70 bg-white/90 shadow-xl shadow-slate-200/60 ring-1 ring-slate-200/70 backdrop-blur"
+      >
+        <summary className="flex cursor-pointer items-center justify-between gap-4 p-5">
+          <span>
+            <span className="inline-flex items-center gap-2 rounded-full bg-sky-100 px-3 py-1 text-xs font-medium text-sky-800 ring-1 ring-sky-200">
+              <Zap size={14} />
+              查看全部活跃事项
+            </span>
+            <span className="mt-3 block text-lg font-semibold tracking-tight text-slate-950">{filterMeta[filter].title}</span>
+            <span className="mt-1 block text-sm text-slate-500">{filterMeta[filter].hint}</span>
+          </span>
+          <Badge tone="bg-sky-100 text-sky-800 ring-sky-200">{String(focus.length)} 条</Badge>
+        </summary>
+        <div className="overflow-x-auto border-t border-slate-100">
+          <FocusTable items={focus} onNavigate={onNavigate} />
+        </div>
+      </details>
     </div>
   );
 }
@@ -1344,8 +1324,8 @@ export function ClassifiedWorkbench() {
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.18),transparent_28%),linear-gradient(135deg,#e0f2fe_0%,#f8fafc_38%,#eef2ff_100%)] text-slate-950">
-      <div className="mx-auto flex min-h-screen max-w-[1480px]">
-        <aside className="hidden w-72 shrink-0 border-r border-white/10 bg-slate-950 px-5 py-6 text-white shadow-2xl shadow-slate-950/30 lg:block">
+      <div className="mx-auto flex min-h-screen w-full min-w-0 max-w-[1480px]">
+        <aside className="hidden w-64 shrink-0 border-r border-white/10 bg-slate-950 px-4 py-6 text-white shadow-2xl shadow-slate-950/30 lg:block xl:w-72 xl:px-5">
           <div className="mb-8">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-300 text-slate-950 shadow-lg shadow-sky-500/30">
               <Radio size={22} />
@@ -1370,11 +1350,11 @@ export function ClassifiedWorkbench() {
           </div>
         </aside>
 
-        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">
+        <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 xl:px-8">
           <header className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-end">
-            <div>
+            <div className="min-w-0">
               <p className="text-sm font-medium text-sky-700">{viewTitle()}</p>
-              <h2 className="mt-2 text-4xl font-semibold tracking-tight text-slate-950">
+              <h2 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
                 {activeView === "dashboard" ? "工作总览，而不是录入页" : activeView === "inbox" ? "快速收集，后续分流" : `${viewTitle()}管理`}
               </h2>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
