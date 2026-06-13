@@ -5,7 +5,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   ArrowRight,
+  CheckCircle2,
   Clock3,
+  Clipboard,
   FileText,
   Inbox,
   Kanban,
@@ -14,6 +16,7 @@ import {
   Plus,
   Radio,
   RotateCw,
+  Send,
   Sparkles,
   Table2,
   Zap,
@@ -27,6 +30,7 @@ import {
   type WorkItem,
   type WorkItemCategory,
 } from "@/lib/work-item-types";
+import { dispatchRuleMatches, dispatchRules, type DispatchRule } from "@/lib/dispatch-rules";
 
 type WorkItemPatch = Partial<Omit<WorkItem, "reportedAt">> & {
   reportedAt?: string | null;
@@ -113,6 +117,40 @@ function isActive(item: WorkItem) {
 
 function isOverdue(item: WorkItem) {
   return Boolean(item.expectedDoneAt && isActive(item) && new Date(item.expectedDoneAt).getTime() < Date.now());
+}
+
+function getDispatchSignal(item: WorkItem): DispatchRule {
+  const matchedRule = dispatchRules.find((rule) => dispatchRuleMatches(rule, item, isOverdue(item)));
+  if (matchedRule) return matchedRule;
+  return {
+    id: "fallback",
+    name: "普通活跃事项",
+    enabled: true,
+    label: "推进中",
+    reason: "仍是活跃事项，今天可视情况推进一步。",
+    action: item.nextAction || "确认下一步",
+    tone: "bg-sky-100 text-sky-800 ring-sky-200",
+    score: 50,
+    explanation: "没有命中更高优先级规则，但事项还没完成，所以作为普通活跃事项保留在建议池。",
+    match: {},
+  };
+}
+
+function getTodayRecommendations(items: WorkItem[]) {
+  return items
+    .filter(isActive)
+    .map((item) => ({ item, signal: getDispatchSignal(item) }))
+    .sort((left, right) => {
+      if (left.signal.score !== right.signal.score) return right.signal.score - left.signal.score;
+      return new Date(right.item.reportedAt).getTime() - new Date(left.item.reportedAt).getTime();
+    })
+    .slice(0, 5);
+}
+
+function getCopyableReply(item: WorkItem) {
+  const conclusion = item.answerSummary || item.conclusion || item.investigationResult || "目前结论还需要补充确认。";
+  const related = item.relatedRule ? `涉及规则/口径：${item.relatedRule}。` : "";
+  return `关于「${item.title}」，目前确认：${conclusion}${related ? `\n${related}` : ""}\n如后续还有具体 case，可以继续补充我再一起核对。`;
 }
 
 function StatCard({
@@ -406,12 +444,85 @@ function FocusTable({
   );
 }
 
+function DispatchRecommendationCard({
+  item,
+  onNavigate,
+  onQuickSave,
+}: {
+  item: WorkItem;
+  onNavigate: (category: WorkItemCategory) => void;
+  onQuickSave: QuickSave;
+}) {
+  const signal = getDispatchSignal(item);
+  const canConvertToRequirement = item.category === "线上问题" || item.processPath === "转需求" || item.convertedRequirement;
+
+  return (
+    <article className="rounded-[28px] border border-slate-200 bg-white/90 p-4 shadow-lg shadow-slate-200/60 transition hover:-translate-y-0.5 hover:border-sky-200 hover:shadow-xl hover:shadow-sky-100/70">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="mb-2 flex flex-wrap items-center gap-2">
+            <Badge tone={signal.tone}>{signal.label}</Badge>
+            <Badge tone={categoryTone[item.category]}>{categoryDisplay[item.category]}</Badge>
+          </div>
+          <h3 className="truncate text-base font-semibold text-slate-950">{item.title}</h3>
+          <p className="mt-2 text-sm leading-6 text-slate-500">{signal.reason}</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => onNavigate(item.category)}
+          className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm transition hover:border-sky-200 hover:text-sky-700"
+        >
+          去处理
+        </button>
+      </div>
+      <div className="mt-4 rounded-2xl bg-slate-50 px-3 py-2 text-sm text-slate-600">
+        建议动作：<span className="font-semibold text-slate-950">{signal.action}</span>
+        {item.nextAction ? <span className="ml-2 text-slate-400">下一步：{item.nextAction}</span> : null}
+      </div>
+      <details className="mt-3 rounded-2xl border border-slate-100 bg-white px-3 py-2 text-xs text-slate-500">
+        <summary className="cursor-pointer font-semibold text-slate-700">为什么推荐？命中「{signal.name}」 · {signal.score} 分</summary>
+        <p className="mt-2 leading-5">{signal.explanation}</p>
+      </details>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => void onQuickSave(item.id, { status: "已完成" })}
+          className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-100 transition hover:bg-emerald-100"
+        >
+          <CheckCircle2 size={13} />
+          标记完成
+        </button>
+        {canConvertToRequirement ? (
+          <button
+            type="button"
+            onClick={() => void onQuickSave(item.id, { category: "需求", processPath: "转需求", convertedRequirement: true, requirementStage: "待澄清" })}
+            className="inline-flex items-center gap-1.5 rounded-full bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700 ring-1 ring-sky-100 transition hover:bg-sky-100"
+          >
+            转为需求
+            <ArrowRight size={13} />
+          </button>
+        ) : null}
+        <button
+          type="button"
+          onClick={() => void onQuickSave(item.id, { needDoc: true })}
+          className="inline-flex items-center gap-1.5 rounded-full bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700 ring-1 ring-violet-100 transition hover:bg-violet-100"
+        >
+          <Clipboard size={13} />
+          标记沉淀
+        </button>
+      </div>
+    </article>
+  );
+}
+
 function Dashboard({
   items,
   onNavigate,
+  onQuickSave,
 }: {
   items: WorkItem[];
   onNavigate: (category: WorkItemCategory) => void;
+  onQuickSave: QuickSave;
 }) {
   const [filter, setFilter] = useState<DashboardFilter>("active");
   const active = items.filter(isActive);
@@ -434,6 +545,7 @@ function Dashboard({
     overdue: { title: "已超期事项", hint: "超过预期时间但还没有结束的事项。" },
     unclassified: { title: "待分流事项", hint: "仍在待归类池，需要判断归属和下一步。" },
   };
+  const recommendations = getTodayRecommendations(items);
 
   return (
     <div className="grid gap-6">
@@ -459,6 +571,45 @@ function Dashboard({
           <StatCard title="已超期" value={overdue.length} hint="超过预期时间" icon={AlertTriangle} accent="rose" active={filter === "overdue"} onClick={() => setFilter("overdue")} />
           <StatCard title="待分流" value={unclassified.length} hint="仍属于待归类池" icon={Inbox} accent="slate" active={filter === "unclassified"} onClick={() => setFilter("unclassified")} />
         </div>
+      </section>
+
+      <section className="rounded-[36px] border border-white/80 bg-white/85 p-5 shadow-2xl shadow-slate-200/70 ring-1 ring-slate-200/70 backdrop-blur">
+        <div className="flex flex-col justify-between gap-3 md:flex-row md:items-end">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-3 py-1 text-xs font-medium text-sky-200">
+              <Send size={14} />
+              今日建议处理
+            </div>
+            <h2 className="mt-3 text-xl font-semibold tracking-tight text-slate-950">先处理这几条，不用重新翻表</h2>
+            <p className="mt-1 text-sm text-slate-500">按超期、待反馈、待分流、线上问题和可沉淀价值自动排序。</p>
+          </div>
+          <Badge tone="bg-sky-100 text-sky-800 ring-sky-200">{String(recommendations.length)} 条建议</Badge>
+        </div>
+        <div className="mt-5 grid gap-3 xl:grid-cols-2">
+          {recommendations.length === 0 ? (
+            <div className="rounded-[28px] border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">
+              暂无需要今日调度的活跃事项。
+            </div>
+          ) : (
+            recommendations.map(({ item }) => (
+              <DispatchRecommendationCard key={item.id} item={item} onNavigate={onNavigate} onQuickSave={onQuickSave} />
+            ))
+          )}
+        </div>
+        <details className="mt-5 rounded-[24px] border border-slate-200 bg-slate-50/80 p-4 text-sm text-slate-600">
+          <summary className="cursor-pointer font-semibold text-slate-800">查看当前调度规则</summary>
+          <div className="mt-3 grid gap-2 md:grid-cols-2">
+            {dispatchRules.filter((rule) => rule.enabled).map((rule) => (
+              <div key={rule.id} className="rounded-2xl border border-slate-200 bg-white px-3 py-2">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="font-semibold text-slate-900">{rule.name}</span>
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">{rule.score} 分</span>
+                </div>
+                <p className="mt-1 text-xs leading-5 text-slate-500">{rule.explanation}</p>
+              </div>
+            ))}
+          </div>
+        </details>
       </section>
 
       <div className="grid gap-6 2xl:grid-cols-[minmax(0,1.35fr)_420px]">
@@ -506,7 +657,7 @@ function InboxForm({
       return {
         category: "线上问题" as WorkItemCategory,
         path: "研发排查",
-        hint: "建议补充影响范围、发生时间和排查负责人。",
+        hint: "建议今天先判断是否影响业务，再决定自查、转研发或转需求。",
         tone: "bg-orange-100 text-orange-800 ring-orange-200",
       };
     }
@@ -514,7 +665,7 @@ function InboxForm({
       return {
         category: "需求" as WorkItemCategory,
         path: "转需求",
-        hint: "建议补充需求文档、对接研发、预计上线时间和业务节点。",
+        hint: "建议只在这里保留个人下一步，正式需求仍同步到钉钉需求表。",
         tone: "bg-sky-100 text-sky-800 ring-sky-200",
       };
     }
@@ -522,14 +673,14 @@ function InboxForm({
       return {
         category: "逻辑答疑" as WorkItemCategory,
         path: "逻辑答复",
-        hint: "建议补充涉及规则、答复结论和是否需要沉淀文档。",
+        hint: "建议处理完直接沉淀为可复制回复，减少下次重复解释。",
         tone: "bg-violet-100 text-violet-800 ring-violet-200",
       };
     }
     return {
       category: "任务" as WorkItemCategory,
       path: "暂不处理",
-      hint: "先进入待归类池，后续可直接在表格里改成需求、问题或答疑。",
+      hint: "先进入待分流，后续只需要判断它是不是今天要投入注意力。",
       tone: "bg-slate-100 text-slate-700 ring-slate-200",
     };
   }, [draft]);
@@ -537,7 +688,7 @@ function InboxForm({
   const effectiveCategory = categoryTouched && isRoutableCategory(selectedCategory) ? selectedCategory : recommendation.category;
 
   return (
-    <form onSubmit={onSubmit} className="relative mx-auto max-w-[760px] overflow-hidden rounded-[36px] border border-white/80 bg-white p-8 shadow-2xl shadow-slate-200/80 ring-1 ring-slate-200/80">
+    <form onSubmit={onSubmit} className="relative mx-auto max-w-[820px] overflow-hidden rounded-[36px] border border-white/80 bg-white p-8 shadow-2xl shadow-slate-200/80 ring-1 ring-slate-200/80">
       <div className="absolute -right-24 -top-24 h-64 w-64 rounded-full bg-sky-200/40 blur-3xl" />
       <div className="absolute -bottom-28 left-10 h-56 w-56 rounded-full bg-orange-200/30 blur-3xl" />
       <div className="relative grid gap-6">
@@ -548,7 +699,7 @@ function InboxForm({
           </div>
           <h2 className="mt-5 text-3xl font-semibold tracking-tight text-slate-950">把刚收到的事情丢进来</h2>
           <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-500">
-            像登录页一样只聚焦一个动作：先记录信号，再让系统帮你推荐归属和补充字段。
+            先粘原话，系统帮你判断处理路径。你只确认分类、下一步和是否今天处理。
           </p>
         </div>
 
@@ -562,11 +713,17 @@ function InboxForm({
         />
 
         <div className={`rounded-[24px] px-5 py-4 text-sm ring-1 ${recommendation.tone}`}>
-          <p className="font-semibold">推荐：{categoryDisplay[recommendation.category]} · {recommendation.path}</p>
+          <p className="font-semibold">系统建议：{categoryDisplay[recommendation.category]} · {recommendation.path}</p>
           <p className="mt-1 text-xs opacity-80">{recommendation.hint}</p>
+          <div className="mt-3 grid gap-2 text-xs sm:grid-cols-3">
+            <span className="rounded-2xl bg-white/60 px-3 py-2">1. 确认类型</span>
+            <span className="rounded-2xl bg-white/60 px-3 py-2">2. 写一句下一步</span>
+            <span className="rounded-2xl bg-white/60 px-3 py-2">3. 判断今天要不要处理</span>
+          </div>
         </div>
 
         <input type="hidden" name="category" value={effectiveCategory} />
+        <input type="hidden" name="processPath" value={recommendation.path} />
 
         <div className="flex flex-wrap justify-center gap-2" role="group" aria-label="选择事项分类">
           {routableCategories.map((option) => (
@@ -590,11 +747,15 @@ function InboxForm({
         <div className="grid gap-3 rounded-[28px] border border-slate-200/80 bg-slate-50/70 p-4 md:grid-cols-2">
           <input name="requester" placeholder="提出人，可不填" className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm" />
           <input name="nextAction" placeholder="下一步动作，可不填" className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm" />
+          <label className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 md:col-span-2">
+            <input name="todayFocus" type="checkbox" defaultChecked className="h-4 w-4 rounded border-slate-300 text-sky-500" />
+            今天需要进入调度台提醒我处理
+          </label>
         </div>
 
         <button disabled={saving} className="mx-auto inline-flex min-h-12 w-full max-w-xs items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-sky-500 to-cyan-400 px-5 text-sm font-semibold text-slate-950 shadow-lg shadow-sky-200 transition hover:-translate-y-0.5 hover:shadow-xl disabled:bg-slate-400">
           <Plus size={18} />
-          {saving ? "保存中" : "加入收集箱"}
+          {saving ? "保存中" : "进入处理流"}
         </button>
       </div>
     </form>
@@ -841,6 +1002,103 @@ function KanbanView({ items, groupBy }: { items: WorkItem[]; groupBy: Requiremen
   );
 }
 
+function IssueDesk({ items, onQuickSave }: { items: WorkItem[]; onQuickSave: QuickSave }) {
+  const activeIssues = items
+    .filter(isActive)
+    .sort((left, right) => {
+      if (isOverdue(left) !== isOverdue(right)) return isOverdue(left) ? -1 : 1;
+      return new Date(right.reportedAt).getTime() - new Date(left.reportedAt).getTime();
+    })
+    .slice(0, 4);
+
+  return (
+    <div className="grid gap-4">
+      <section className="rounded-[34px] border border-white/70 bg-white/90 p-5 shadow-2xl shadow-slate-200/70 ring-1 ring-slate-200/70 backdrop-blur">
+        <div className="flex flex-col justify-between gap-3 md:flex-row md:items-end">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full bg-orange-100 px-3 py-1 text-xs font-semibold text-orange-800 ring-1 ring-orange-200">
+              <AlertTriangle size={14} />
+              问题处理台
+            </div>
+            <h2 className="mt-3 text-xl font-semibold tracking-tight text-slate-950">先形成处理结论，再决定是否升级</h2>
+            <p className="mt-1 text-sm text-slate-500">每条线上反馈只看三件事：路径、下一步、最终结论。</p>
+          </div>
+          <Badge tone="bg-orange-100 text-orange-800 ring-orange-200">{String(activeIssues.length)} 条处理中</Badge>
+        </div>
+        <div className="mt-5 grid gap-3 xl:grid-cols-2">
+          {activeIssues.length === 0 ? (
+            <div className="rounded-[28px] border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">
+              暂无需要处理的线上问题。
+            </div>
+          ) : (
+            activeIssues.map((item) => (
+              <article key={item.id} className="rounded-[28px] border border-orange-100 bg-white p-4 shadow-lg shadow-slate-200/60">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h3 className="truncate text-base font-semibold text-slate-950">{item.title}</h3>
+                    <p className="mt-2 text-sm leading-6 text-slate-500">影响范围：{item.impactScope || "待补充"} · 当前状态：{item.status}</p>
+                  </div>
+                  {isOverdue(item) ? <Badge tone="bg-rose-100 text-rose-800 ring-rose-200">超期</Badge> : null}
+                </div>
+                <div className="mt-4 grid gap-3 rounded-2xl bg-orange-50/60 p-3 text-sm">
+                  <div>
+                    <p className="text-xs font-semibold text-orange-800">处理路径</p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {(["研发排查", "逻辑答复", "手动配置", "数据修复", "转需求"] as const).map((path) => (
+                        <button
+                          key={path}
+                          type="button"
+                          onClick={() => void onQuickSave(item.id, path === "转需求" ? { processPath: path, category: "需求", convertedRequirement: true, requirementStage: "待澄清" } : { processPath: path })}
+                          className={`rounded-full px-3 py-1.5 text-xs font-semibold ring-1 transition ${
+                            item.processPath === path ? "bg-slate-950 text-white ring-slate-950" : "bg-white text-slate-600 ring-slate-200 hover:bg-slate-50"
+                          }`}
+                        >
+                          {path}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="grid gap-2 md:grid-cols-2">
+                    <EditableText value={item.nextAction} placeholder="下一步动作" onSave={(value) => void onQuickSave(item.id, { nextAction: value })} />
+                    <EditableText value={item.investigationResult || item.conclusion} placeholder="处理结论" onSave={(value) => void onQuickSave(item.id, { investigationResult: value })} />
+                  </div>
+                </div>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void onQuickSave(item.id, { status: "待反馈" })}
+                    className="rounded-full bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 ring-1 ring-amber-100 transition hover:bg-amber-100"
+                  >
+                    等反馈
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void onQuickSave(item.id, { needDoc: true })}
+                    className="rounded-full bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700 ring-1 ring-violet-100 transition hover:bg-violet-100"
+                  >
+                    沉淀知识
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void onQuickSave(item.id, { status: "已完成" })}
+                    className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-100 transition hover:bg-emerald-100"
+                  >
+                    已解释/完成
+                  </button>
+                </div>
+              </article>
+            ))
+          )}
+        </div>
+      </section>
+
+      <section className="overflow-hidden rounded-[32px] border border-white/70 bg-white/90 shadow-2xl shadow-slate-200/70 ring-1 ring-slate-200/70 backdrop-blur">
+        <ItemTable items={items} variant="incident" onQuickSave={onQuickSave} />
+      </section>
+    </div>
+  );
+}
+
 function QaKnowledgeView({
   items,
   query,
@@ -871,7 +1129,7 @@ function QaKnowledgeView({
     );
   }, [items, query]);
 
-  const knowledgeCards = filteredItems.filter((item) => item.answerSummary || item.conclusion);
+  const knowledgeCards = filteredItems.filter((item) => item.answerSummary || item.conclusion || item.investigationResult || item.needDoc);
   const [cardPage, setCardPage] = useState(1);
   const cardPageSize = 6;
   const cardPageCount = Math.max(1, Math.ceil(knowledgeCards.length / cardPageSize));
@@ -883,8 +1141,8 @@ function QaKnowledgeView({
       <section className="rounded-[32px] border border-white/70 bg-white/90 p-4 shadow-xl shadow-slate-200/70 ring-1 ring-slate-200/70 backdrop-blur">
         <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
           <div>
-            <p className="text-sm font-semibold text-slate-950">逻辑答疑知识库</p>
-            <p className="mt-1 text-xs text-slate-500">先可搜索、可复用，不做复杂智能匹配。</p>
+            <p className="text-sm font-semibold text-slate-950">结论知识库</p>
+            <p className="mt-1 text-xs text-slate-500">优先沉淀可复制回复，不再只存历史记录。</p>
           </div>
           <input
             value={query}
@@ -910,8 +1168,29 @@ function QaKnowledgeView({
                 <h3 className="text-sm font-semibold text-slate-950">{item.title}</h3>
                 {item.needDoc ? <Badge tone="bg-violet-100 text-violet-800 ring-violet-200">可沉淀</Badge> : null}
               </div>
-              <p className="mt-3 line-clamp-3 text-sm leading-6 text-slate-600">{item.answerSummary || item.conclusion}</p>
+              <p className="mt-3 line-clamp-3 text-sm leading-6 text-slate-600">{item.answerSummary || item.conclusion || item.investigationResult || "待补充可复用结论"}</p>
+              <div className="mt-3 rounded-2xl bg-violet-50/70 p-3 text-xs leading-5 text-violet-900">
+                <p className="font-semibold">可复制回复</p>
+                <p className="mt-1 line-clamp-3 whitespace-pre-line">{getCopyableReply(item)}</p>
+              </div>
               <p className="mt-3 text-xs text-slate-400">规则：{item.relatedRule || "-"}</p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => void navigator.clipboard.writeText(getCopyableReply(item))}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-slate-950 px-3 py-1.5 text-xs font-semibold text-white transition hover:-translate-y-0.5 hover:shadow-lg hover:shadow-slate-200"
+                >
+                  <Clipboard size={13} />
+                  复制回复
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void onQuickSave(item.id, { needDoc: true })}
+                  className="rounded-full bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700 ring-1 ring-violet-100 transition hover:bg-violet-100"
+                >
+                  标记常用
+                </button>
+              </div>
             </article>
           ))
         )}
@@ -978,12 +1257,20 @@ export function ClassifiedWorkbench() {
     return items.filter((item) => item.category === activeView);
   }, [activeView, items]);
 
+  const knowledgeItems = useMemo(
+    () => items.filter((item) => item.category === "逻辑答疑" || item.needDoc || item.answerSummary || item.conclusion || item.investigationResult),
+    [items],
+  );
+
   async function addItem(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
     const formData = new FormData(form);
     const description = String(formData.get("description") ?? "").trim();
     const explicitTitle = String(formData.get("title") ?? "").trim();
+    const todayFocus = formData.get("todayFocus") === "on";
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 0, 0);
     if (!description && !explicitTitle) {
       setError("请至少填写标题或问题描述");
       return;
@@ -996,13 +1283,13 @@ export function ClassifiedWorkbench() {
       const payload = {
         title: explicitTitle || description.slice(0, 40),
         category: String(formData.get("category") ?? "任务"),
-        processPath: null,
+        processPath: String(formData.get("processPath") ?? "") || null,
         requester: String(formData.get("requester") ?? "").trim() || null,
         description: description || explicitTitle,
         owner: null,
         reportedAt: new Date().toISOString(),
-        expectedDoneAt: null,
-        status: "已记录",
+        expectedDoneAt: todayFocus ? todayEnd.toISOString() : null,
+        status: todayFocus ? "处理中" : "已记录",
         businessArea: null,
         nextAction: String(formData.get("nextAction") ?? "").trim() || null,
       };
@@ -1120,7 +1407,7 @@ export function ClassifiedWorkbench() {
           {loading ? (
             <div className="rounded-3xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">正在加载数据库事项...</div>
           ) : activeView === "dashboard" ? (
-            <Dashboard items={items} onNavigate={(category) => setActiveView(isRoutableCategory(category) ? category : "dashboard")} />
+            <Dashboard items={items} onNavigate={(category) => setActiveView(isRoutableCategory(category) ? category : "dashboard")} onQuickSave={updateItem} />
           ) : activeView === "inbox" ? (
             <InboxForm saving={saving} onSubmit={addItem} />
           ) : activeView === "需求" ? (
@@ -1171,12 +1458,10 @@ export function ClassifiedWorkbench() {
               )}
             </div>
           ) : activeView === "线上问题" ? (
-            <section className="overflow-hidden rounded-[32px] border border-white/70 bg-white/90 shadow-2xl shadow-slate-200/70 ring-1 ring-slate-200/70 backdrop-blur">
-              <ItemTable items={visibleItems} variant="incident" onQuickSave={updateItem} />
-            </section>
+            <IssueDesk items={visibleItems} onQuickSave={updateItem} />
           ) : activeView === "逻辑答疑" ? (
             <QaKnowledgeView
-              items={visibleItems}
+              items={knowledgeItems}
               query={qaSearch}
               onQueryChange={setQaSearch}
               onQuickSave={updateItem}
